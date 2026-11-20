@@ -852,7 +852,7 @@
 
     const bar = $("#preloaderBar");
     const percent = $("#preloaderPct");
-    const duration = perfLow ? 220 : 520;
+    const duration = perfLow ? 200 : 380;
     const started = performance.now();
     let frame = 0;
     let finished = false;
@@ -931,6 +931,51 @@
   }
 
   /* ==========================================================
+     Idle image warming — decode thumbs before the user scrolls
+     ========================================================== */
+
+  function warmGallery() {
+    const images = $$("#workGrid img");
+    if (!images.length) return;
+    const connection = navigator.connection;
+    if (connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || ""))) {
+      return;
+    }
+
+    let lastInteraction = performance.now();
+    const markInteraction = () => {
+      lastInteraction = performance.now();
+    };
+    window.addEventListener("scroll", markInteraction, { passive: true });
+    window.addEventListener("pointerdown", markInteraction, { passive: true });
+
+    let index = 0;
+    const step = () => {
+      if (document.hidden || performance.now() - lastInteraction < 800) {
+        window.setTimeout(step, 700);
+        return;
+      }
+      const batch = images.slice(index, index + 4);
+      index += 4;
+      if (!batch.length) return;
+      Promise.allSettled(
+        batch.map((image) => {
+          image.loading = "eager";
+          return typeof image.decode === "function" ? image.decode() : Promise.resolve();
+        })
+      ).then(() => {
+        if (index < images.length) window.setTimeout(step, 160);
+      });
+    };
+
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(step, { timeout: 2200 });
+    } else {
+      window.setTimeout(step, 900);
+    }
+  }
+
+  /* ==========================================================
      Boot
      ========================================================== */
 
@@ -949,6 +994,7 @@
 
     initPreloader(() => {
       initReveals();
+      warmGallery();
     });
   }
 

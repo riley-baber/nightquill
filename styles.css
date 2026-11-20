@@ -3348,14 +3348,4 @@ html.perf-low {
   translate: none;
 }
 
-@supports (content-visibility: auto) {
-  .feature,
-  .disciplines,
-  .studio,
-  .cta {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 900px;
-  }
-}
-
 
